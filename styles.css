@@ -114,6 +114,33 @@ h1 {
   backdrop-filter: blur(18px);
 }
 
+.language-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.language-switch button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.language-switch button.active {
+  background: rgba(57, 215, 204, 0.18);
+  color: var(--text);
+}
+
 .selector {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
