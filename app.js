@@ -15,12 +15,69 @@ const mixProgress = document.querySelector("#mix-progress");
 const processLabel = document.querySelector("#process-label");
 const processPercent = document.querySelector("#process-percent");
 const playProcess = document.querySelector("#play-process");
+const languageSwitch = document.querySelector(".language-switch");
+const cloudDensity = document.querySelector("#cloud-density");
+const densityValue = document.querySelector("#density-value");
+const orbitalList = document.querySelector("#orbital-list");
+
+const translations = {
+  zh: {
+    appTitle: "杂化轨道 3D 演示",
+    stageLabel: "3D 杂化轨道演示",
+    loadError: "3D 模块未加载。请用 http://127.0.0.1:5173/ 打开，而不是直接双击 HTML 文件。",
+    chooseType: "选择类型",
+    hybridType: "杂化类型",
+    orbitalCount: "轨道数",
+    shape: "空间构型",
+    angle: "典型键角",
+    playProcess: "播放形成过程",
+    autoRotate: "自动旋转",
+    showLabels: "显示标签",
+    cloudMode: "电子云模式",
+    cloudDensity: "电子云密度",
+    orbitalVisibility: "轨道显示与颜色",
+    atomicOrbitals: "原子轨道",
+    hybridOrbitals: "杂化轨道",
+    orbital: "轨道",
+    atomicOrbitalsProcess: "原子轨道：s / p / d",
+    mixingProcess: "线性组合：轨道混合",
+    hybridProcess: "杂化轨道 / 未杂化 p 轨道",
+    geometryWithPi: (entry) => `${entry.geometry.zh}；${entry.directions.length} 个 ${entry.label} 轨道 + ${entry.pi.length} 个未杂化 p 轨道`,
+    geometryWithoutPi: (entry) => `${entry.geometry.zh}；${entry.directions.length} 个 ${entry.label} 杂化轨道`,
+  },
+  en: {
+    appTitle: "Hybrid Atomic Orbitals 3D Demo",
+    stageLabel: "3D hybrid atomic orbitals demo",
+    loadError: "The 3D module did not load. Open with http://127.0.0.1:5173/ instead of double-clicking the HTML file.",
+    chooseType: "Choose type",
+    hybridType: "Hybridization type",
+    orbitalCount: "Orbitals",
+    shape: "Geometry",
+    angle: "Typical angle",
+    playProcess: "Play formation",
+    autoRotate: "Auto rotate",
+    showLabels: "Show labels",
+    cloudMode: "Electron cloud",
+    cloudDensity: "Cloud density",
+    orbitalVisibility: "Orbital display & colors",
+    atomicOrbitals: "Atomic orbitals",
+    hybridOrbitals: "Hybrid orbitals",
+    orbital: "orbital",
+    atomicOrbitalsProcess: "Atomic orbitals: s / p / d",
+    mixingProcess: "Linear combination: orbital mixing",
+    hybridProcess: "Hybrid orbitals / unhybridized p orbitals",
+    geometryWithPi: (entry) => `${entry.geometry.en}; ${entry.directions.length} ${entry.label} orbitals + ${entry.pi.length} unhybridized p orbital${entry.pi.length > 1 ? "s" : ""}`,
+    geometryWithoutPi: (entry) => `${entry.geometry.en}; ${entry.directions.length} ${entry.label} hybrid orbitals`,
+  },
+};
+
+let currentLanguage = localStorage.getItem("orbital-language") || "zh";
 
 const data = {
   sp: {
     label: "sp",
-    geometry: "线形，180°",
-    shape: "线形",
+    geometry: { zh: "线形，180°", en: "Linear, 180°" },
+    shape: { zh: "线形", en: "Linear" },
     angle: "180°",
     atomic: ["s", "px"],
     pi: ["py", "pz"],
@@ -31,8 +88,8 @@ const data = {
   },
   sp2: {
     label: "sp²",
-    geometry: "平面三角形，120°",
-    shape: "平面三角形",
+    geometry: { zh: "平面三角形，120°", en: "Trigonal planar, 120°" },
+    shape: { zh: "平面三角形", en: "Trigonal planar" },
     angle: "120°",
     atomic: ["s", "px", "pz"],
     pi: ["py"],
@@ -44,8 +101,8 @@ const data = {
   },
   sp3: {
     label: "sp³",
-    geometry: "四面体，109.5°",
-    shape: "四面体",
+    geometry: { zh: "四面体，109.5°", en: "Tetrahedral, 109.5°" },
+    shape: { zh: "四面体", en: "Tetrahedral" },
     angle: "109.5°",
     atomic: ["s", "px", "py", "pz"],
     pi: [],
@@ -58,8 +115,8 @@ const data = {
   },
   sp3d: {
     label: "sp³d",
-    geometry: "三角双锥，90° / 120°",
-    shape: "三角双锥",
+    geometry: { zh: "三角双锥，90° / 120°", en: "Trigonal bipyramidal, 90° / 120°" },
+    shape: { zh: "三角双锥", en: "Trigonal bipyramidal" },
     angle: "90° / 120°",
     atomic: ["s", "px", "py", "pz", "d"],
     pi: [],
@@ -73,8 +130,8 @@ const data = {
   },
   sp3d2: {
     label: "sp³d²",
-    geometry: "八面体，90°",
-    shape: "八面体",
+    geometry: { zh: "八面体，90°", en: "Octahedral, 90°" },
+    shape: { zh: "八面体", en: "Octahedral" },
     angle: "90°",
     atomic: ["s", "px", "py", "pz", "d₁", "d₂"],
     pi: [],
@@ -210,6 +267,8 @@ const piMaterial = new THREE.MeshPhysicalMaterial({
 let activeKey = "sp";
 let playFrame = 0;
 let randomSeed = 12;
+let orbitalControls = [];
+const orbitalState = new Map();
 
 function orientAlong(mesh, direction) {
   const axis = new THREE.Vector3(0, 1, 0);
@@ -307,8 +366,10 @@ function makeAtomicOrbital(name, index) {
   return group;
 }
 
-function makeLobe(direction, index, orbitalLabel) {
+function makeLobe(direction, index, orbitalLabel, orbitalId) {
   const group = new THREE.Group();
+  group.userData.orbitalId = orbitalId;
+  group.userData.orbitalName = `${orbitalLabel}-${index + 1}`;
   const dir = new THREE.Vector3(...direction).normalize();
   const colorMaterial = lobeMaterials[index % lobeMaterials.length];
 
@@ -350,7 +411,7 @@ function makeLobe(direction, index, orbitalLabel) {
   orientAlong(bond, dir);
   group.add(bond);
 
-  const label = makeLabel(`${orbitalLabel} orbital`, "#eef7f7", "#39d7cc");
+  const label = makeLabel(`${orbitalLabel} ${translations[currentLanguage].orbital}`, "#eef7f7", "#39d7cc");
   label.position.copy(dir.clone().multiplyScalar(2.55));
   group.add(label);
 
@@ -359,6 +420,8 @@ function makeLobe(direction, index, orbitalLabel) {
 
 function makePiBond(axisName, index) {
   const group = new THREE.Group();
+  group.userData.orbitalId = `pi-${axisName}`;
+  group.userData.orbitalName = `${axisName} π`;
   const axis = cloneVector(axisName);
   const dumbbell = makeDumbbell(axis, piMaterial, piMaterial, 1.15);
   group.add(dumbbell);
@@ -372,7 +435,7 @@ function makePiBond(axisName, index) {
     ),
   );
 
-  const label = makeLabel(`${axisName} orbital`, "#ffffff", "#b587ff");
+  const label = makeLabel(`${axisName} ${translations[currentLanguage].orbital}`, "#ffffff", "#b587ff");
   label.position.copy(axis.clone().multiplyScalar(2.15));
   group.add(label);
   return group;
@@ -433,6 +496,7 @@ function makePointCloud(positions, colors, size, opacity) {
   });
   const points = new THREE.Points(geometry, material);
   points.userData.isCloud = true;
+  points.userData.baseCloudOpacity = opacity;
   return points;
 }
 
@@ -502,6 +566,27 @@ function clearGroup(group) {
   while (group.children.length) group.remove(group.children[0]);
 }
 
+function applyLanguage(language) {
+  currentLanguage = translations[language] ? language : "zh";
+  localStorage.setItem("orbital-language", currentLanguage);
+  document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
+  document.title = translations[currentLanguage].appTitle;
+  document.querySelector(".stage").setAttribute("aria-label", translations[currentLanguage].stageLabel);
+
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = translations[currentLanguage][element.dataset.i18n];
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", translations[currentLanguage][element.dataset.i18nAriaLabel]);
+  });
+  languageSwitch.querySelectorAll("button[data-lang]").forEach((button) => {
+    const isActive = button.dataset.lang === currentLanguage;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+  renderHybrid(activeKey);
+}
+
 function renderHybrid(keyName) {
   activeKey = keyName;
   const entry = data[keyName];
@@ -510,28 +595,29 @@ function renderHybrid(keyName) {
 
   const atomicCenter = new THREE.Mesh(new THREE.SphereGeometry(0.24, 48, 24), centerMaterial.clone());
   atomicRoot.add(atomicCenter);
-  const atomicTitle = makeLabel("atomic orbitals", "#eef7f7", "#f0b84c");
+  const atomicTitle = makeLabel(translations[currentLanguage].atomicOrbitals, "#eef7f7", "#f0b84c");
   atomicTitle.position.set(0, 2.5, 0);
   atomicRoot.add(atomicTitle);
   entry.atomic.forEach((orbital, index) => atomicRoot.add(makeAtomicOrbital(orbital, index)));
 
   const center = new THREE.Mesh(new THREE.SphereGeometry(0.34, 48, 24), centerMaterial.clone());
   hybridRoot.add(center);
-  const hybridTitle = makeLabel("hybrid orbitals", "#eef7f7", "#39d7cc");
+  const hybridTitle = makeLabel(translations[currentLanguage].hybridOrbitals, "#eef7f7", "#39d7cc");
   hybridTitle.position.set(0, 2.75, 0);
   hybridRoot.add(hybridTitle);
 
   entry.directions.forEach((direction, index) => {
-    hybridRoot.add(makeLobe(direction, index, entry.label));
+    hybridRoot.add(makeLobe(direction, index, entry.label, `hybrid-${index}`));
   });
   entry.pi.forEach((axisName, index) => hybridRoot.add(makePiBond(axisName, index)));
+  buildOrbitalControls();
 
   title.textContent = entry.label;
   geometry.textContent = entry.pi.length
-    ? `${entry.geometry}；${entry.directions.length} 个 ${entry.label} 轨道 + ${entry.pi.length} 个未杂化 p 轨道`
-    : `${entry.geometry}；${entry.directions.length} 个 ${entry.label} 杂化轨道`;
+    ? translations[currentLanguage].geometryWithPi(entry)
+    : translations[currentLanguage].geometryWithoutPi(entry);
   count.textContent = entry.directions.length;
-  shape.textContent = entry.shape;
+  shape.textContent = entry.shape[currentLanguage];
   angle.textContent = entry.angle;
 
   selector.querySelectorAll("button").forEach((button) => {
@@ -539,6 +625,84 @@ function renderHybrid(keyName) {
   });
 
   applyProgress(Number(mixProgress.value) / 100);
+}
+
+function getDefaultOrbitalColor(index) {
+  return `#${lobeMaterials[index % lobeMaterials.length].color.getHexString()}`;
+}
+
+function ensureOrbitalState(group, index) {
+  const id = group.userData.orbitalId;
+  if (!orbitalState.has(id)) {
+    orbitalState.set(id, { visible: true, color: getDefaultOrbitalColor(index) });
+  }
+  return orbitalState.get(id);
+}
+
+function buildOrbitalControls() {
+  orbitalControls = hybridRoot.children.filter((child) => child.userData.orbitalId);
+  orbitalList.innerHTML = "";
+
+  orbitalControls.forEach((group, index) => {
+    const state = ensureOrbitalState(group, index);
+    const row = document.createElement("label");
+    row.className = "orbital-row";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.visible;
+    checkbox.dataset.orbitalId = group.userData.orbitalId;
+
+    const name = document.createElement("span");
+    name.textContent = group.userData.orbitalName;
+
+    const color = document.createElement("input");
+    color.type = "color";
+    color.value = state.color;
+    color.dataset.orbitalId = group.userData.orbitalId;
+    color.setAttribute("aria-label", group.userData.orbitalName);
+
+    row.append(checkbox, name, color);
+    orbitalList.append(row);
+  });
+
+  applyOrbitalControls();
+}
+
+function applyOrbitalControls() {
+  orbitalControls.forEach((group, index) => {
+    const state = ensureOrbitalState(group, index);
+    group.visible = state.visible;
+    applyOrbitalColor(group, state.color);
+  });
+  applyCloudDensity();
+}
+
+function applyOrbitalColor(group, color) {
+  const colorValue = new THREE.Color(color);
+  group.traverse((object) => {
+    if (object.isPoints && object.geometry?.attributes?.color) {
+      const colors = object.geometry.attributes.color;
+      for (let i = 0; i < colors.count; i += 1) {
+        colors.setXYZ(i, colorValue.r, colorValue.g, colorValue.b);
+      }
+      colors.needsUpdate = true;
+    }
+    if (object.material?.color) {
+      object.material.color.copy(colorValue);
+      if (object.material.emissive) object.material.emissive.copy(colorValue).multiplyScalar(0.28);
+    }
+  });
+}
+
+function applyCloudDensity() {
+  const density = Number(cloudDensity.value) / 100;
+  densityValue.textContent = `${Math.round(density * 100)}%`;
+  root.traverse((object) => {
+    if (!object.userData.isCloud || !object.material) return;
+    object.material.size = 0.032 * Math.sqrt(density);
+    object.material.opacity = (object.userData.baseCloudOpacity ?? 0.78) * Math.min(1.6, density);
+  });
 }
 
 function setGroupOpacity(group, opacity) {
@@ -565,6 +729,7 @@ function setVisualMode() {
     if (object.userData.isCloud) object.visible = cloud;
   });
   setLabelsVisible();
+  applyCloudDensity();
 }
 
 function applyProgress(value) {
@@ -584,9 +749,9 @@ function applyProgress(value) {
   setVisualMode();
 
   processPercent.textContent = `${Math.round(progress * 100)}%`;
-  if (progress < 0.34) processLabel.textContent = "原子轨道：s / p / d";
-  else if (progress < 0.78) processLabel.textContent = "线性组合：轨道混合";
-  else processLabel.textContent = "杂化轨道 / 未杂化 p 轨道";
+  if (progress < 0.34) processLabel.textContent = translations[currentLanguage].atomicOrbitalsProcess;
+  else if (progress < 0.78) processLabel.textContent = translations[currentLanguage].mixingProcess;
+  else processLabel.textContent = translations[currentLanguage].hybridProcess;
 }
 
 function smoothstep(edge0, edge1, value) {
@@ -618,6 +783,12 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 
+languageSwitch.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-lang]");
+  if (!button) return;
+  applyLanguage(button.dataset.lang);
+});
+
 selector.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-key]");
   if (!button) return;
@@ -638,6 +809,17 @@ mixProgress.addEventListener("input", () => {
 
 playProcess.addEventListener("click", playFormation);
 
+cloudDensity.addEventListener("input", applyCloudDensity);
+
+orbitalList.addEventListener("input", (event) => {
+  const input = event.target;
+  const state = orbitalState.get(input.dataset.orbitalId);
+  if (!state) return;
+  if (input.type === "checkbox") state.visible = input.checked;
+  if (input.type === "color") state.color = input.value;
+  applyOrbitalControls();
+});
+
 window.addEventListener("resize", resize);
 
 function tick() {
@@ -647,6 +829,6 @@ function tick() {
 }
 
 resize();
-renderHybrid(activeKey);
+applyLanguage(currentLanguage);
 document.body.classList.add("ready");
 tick();

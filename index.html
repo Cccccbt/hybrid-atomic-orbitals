@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>杂化轨道 3D 演示</title>
-    <link rel="stylesheet" href="./styles.css?v=5" />
+    <link rel="stylesheet" href="./styles.css?v=7" />
     <script type="importmap">
       {
         "imports": {
@@ -19,7 +19,7 @@
       <section class="stage" aria-label="3D 杂化轨道演示">
         <canvas id="orbital-canvas"></canvas>
         <div class="load-error" id="load-error">
-          3D 模块未加载。请用 http://127.0.0.1:5173/ 打开，而不是直接双击 HTML 文件。
+          <span data-i18n="loadError">3D 模块未加载。请用 http://127.0.0.1:5173/ 打开，而不是直接双击 HTML 文件。</span>
         </div>
         <div class="hud">
           <div>
@@ -31,9 +31,14 @@
       </section>
 
       <aside class="panel">
+        <div class="language-switch" role="group" aria-label="语言切换">
+          <button class="active" type="button" data-lang="zh">中文</button>
+          <button type="button" data-lang="en">English</button>
+        </div>
+
         <div>
-          <p class="eyebrow">选择类型</p>
-          <div class="selector" id="selector" role="tablist" aria-label="杂化类型">
+          <p class="eyebrow" data-i18n="chooseType">选择类型</p>
+          <div class="selector" id="selector" role="tablist" aria-label="杂化类型" data-i18n-aria-label="hybridType">
             <button class="active" type="button" data-key="sp">sp</button>
             <button type="button" data-key="sp2">sp²</button>
             <button type="button" data-key="sp3">sp³</button>
@@ -44,15 +49,15 @@
 
         <div class="facts">
           <div>
-            <span>轨道数</span>
+            <span data-i18n="orbitalCount">轨道数</span>
             <strong id="count">2</strong>
           </div>
           <div>
-            <span>空间构型</span>
+            <span data-i18n="shape">空间构型</span>
             <strong id="shape">线形</strong>
           </div>
           <div>
-            <span>典型键角</span>
+            <span data-i18n="angle">典型键角</span>
             <strong id="angle">180°</strong>
           </div>
         </div>
@@ -63,27 +68,40 @@
             <strong id="process-percent">0%</strong>
           </div>
           <input id="mix-progress" type="range" min="0" max="100" value="100" />
-          <button id="play-process" type="button">播放形成过程</button>
+          <button id="play-process" type="button" data-i18n="playProcess">播放形成过程</button>
+        </div>
+
+        <div class="density-control">
+          <div class="process-head">
+            <span data-i18n="cloudDensity">电子云密度</span>
+            <strong id="density-value">100%</strong>
+          </div>
+          <input id="cloud-density" type="range" min="20" max="180" value="100" />
+        </div>
+
+        <div class="orbital-panel">
+          <p class="eyebrow" data-i18n="orbitalVisibility">轨道显示与颜色</p>
+          <div class="orbital-list" id="orbital-list"></div>
         </div>
 
         <div class="controls">
           <label class="toggle">
             <input id="auto-rotate" type="checkbox" checked />
-            <span>自动旋转</span>
+            <span data-i18n="autoRotate">自动旋转</span>
           </label>
           <label class="toggle">
             <input id="show-labels" type="checkbox" checked />
-            <span>显示标签</span>
+            <span data-i18n="showLabels">显示标签</span>
           </label>
           <label class="toggle">
             <input id="cloud-mode" type="checkbox" />
-            <span>电子云模式</span>
+            <span data-i18n="cloudMode">电子云模式</span>
           </label>
         </div>
       </aside>
     </main>
 
-    <script type="module" src="./app.js?v=5"></script>
+    <script type="module" src="./app.js?v=7"></script>
   </body>
 </html>
  
