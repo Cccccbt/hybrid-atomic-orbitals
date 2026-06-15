@@ -460,28 +460,39 @@ function makeSCloud(center, color, count, radius) {
 function makeOrbitalCloud(lobes, totalCount) {
   const positions = [];
   const colors = [];
-  lobes.forEach((lobe) => {
+  const pointCountPerLobe = Math.ceil((totalCount * MAX_CLOUD_DENSITY) / lobes.length);
+  const lobeFrames = lobes.map((lobe) => {
     const dir = lobe.direction.clone().normalize();
     const side = Math.abs(dir.y) < 0.88 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
     const u = new THREE.Vector3().crossVectors(dir, side).normalize();
-    const v = new THREE.Vector3().crossVectors(dir, u).normalize();
-    const color = new THREE.Color(lobe.color);
-    const count = Math.ceil((totalCount * MAX_CLOUD_DENSITY) / lobes.length);
-    for (let i = 0; i < count; i += 1) {
-      const axial = lobe.center + gaussian() * lobe.length * 0.34;
-      const spread = (0.18 + nextRandom() * 0.82) * lobe.radius * (0.55 + axial / Math.max(lobe.center, 0.1));
-      const spin = nextRandom() * Math.PI * 2;
-      const radial = Math.abs(gaussian()) * spread;
-      const point = dir
-        .clone()
-        .multiplyScalar(Math.max(0.06, axial))
-        .add(u.clone().multiplyScalar(Math.cos(spin) * radial))
-        .add(v.clone().multiplyScalar(Math.sin(spin) * radial));
-      positions.push(point.x, point.y, point.z);
-      colors.push(color.r, color.g, color.b);
-    }
+    return {
+      ...lobe,
+      dir,
+      u,
+      v: new THREE.Vector3().crossVectors(dir, u).normalize(),
+      color: new THREE.Color(lobe.color),
+    };
   });
+
+  for (let i = 0; i < pointCountPerLobe; i += 1) {
+    lobeFrames.forEach((lobe) => addOrbitalCloudPoint(lobe, positions, colors));
+  }
+
   return makePointCloud(positions, colors, 0.032, 0.78, totalCount);
+}
+
+function addOrbitalCloudPoint(lobe, positions, colors) {
+  const axial = lobe.center + gaussian() * lobe.length * 0.34;
+  const spread = (0.18 + nextRandom() * 0.82) * lobe.radius * (0.55 + axial / Math.max(lobe.center, 0.1));
+  const spin = nextRandom() * Math.PI * 2;
+  const radial = Math.abs(gaussian()) * spread;
+  const point = lobe.dir
+    .clone()
+    .multiplyScalar(Math.max(0.06, axial))
+    .add(lobe.u.clone().multiplyScalar(Math.cos(spin) * radial))
+    .add(lobe.v.clone().multiplyScalar(Math.sin(spin) * radial));
+  positions.push(point.x, point.y, point.z);
+  colors.push(lobe.color.r, lobe.color.g, lobe.color.b);
 }
 
 function makePointCloud(positions, colors, size, opacity, baseCount) {
