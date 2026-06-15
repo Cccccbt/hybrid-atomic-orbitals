@@ -19,6 +19,7 @@ const languageSwitch = document.querySelector(".language-switch");
 const cloudDensity = document.querySelector("#cloud-density");
 const densityValue = document.querySelector("#density-value");
 const orbitalList = document.querySelector("#orbital-list");
+const MAX_CLOUD_DENSITY = 1.8;
 
 const translations = {
   zh: {
@@ -445,14 +446,15 @@ function makeSCloud(center, color, count, radius) {
   const positions = [];
   const colors = [];
   const colorValue = new THREE.Color(color);
-  for (let i = 0; i < count; i += 1) {
+  const generatedCount = Math.ceil(count * MAX_CLOUD_DENSITY);
+  for (let i = 0; i < generatedCount; i += 1) {
     const direction = randomUnitVector();
     const distance = Math.pow(nextRandom(), 0.42) * radius;
     const point = center.clone().add(direction.multiplyScalar(distance));
     positions.push(point.x, point.y, point.z);
     colors.push(colorValue.r, colorValue.g, colorValue.b);
   }
-  return makePointCloud(positions, colors, 0.034, 0.82);
+  return makePointCloud(positions, colors, 0.034, 0.82, count);
 }
 
 function makeOrbitalCloud(lobes, totalCount) {
@@ -464,7 +466,7 @@ function makeOrbitalCloud(lobes, totalCount) {
     const u = new THREE.Vector3().crossVectors(dir, side).normalize();
     const v = new THREE.Vector3().crossVectors(dir, u).normalize();
     const color = new THREE.Color(lobe.color);
-    const count = Math.floor(totalCount / lobes.length);
+    const count = Math.ceil((totalCount * MAX_CLOUD_DENSITY) / lobes.length);
     for (let i = 0; i < count; i += 1) {
       const axial = lobe.center + gaussian() * lobe.length * 0.34;
       const spread = (0.18 + nextRandom() * 0.82) * lobe.radius * (0.55 + axial / Math.max(lobe.center, 0.1));
@@ -479,10 +481,10 @@ function makeOrbitalCloud(lobes, totalCount) {
       colors.push(color.r, color.g, color.b);
     }
   });
-  return makePointCloud(positions, colors, 0.032, 0.78);
+  return makePointCloud(positions, colors, 0.032, 0.78, totalCount);
 }
 
-function makePointCloud(positions, colors, size, opacity) {
+function makePointCloud(positions, colors, size, opacity, baseCount) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
@@ -496,7 +498,10 @@ function makePointCloud(positions, colors, size, opacity) {
   });
   const points = new THREE.Points(geometry, material);
   points.userData.isCloud = true;
+  points.userData.baseCloudSize = size;
   points.userData.baseCloudOpacity = opacity;
+  points.userData.basePointCount = baseCount;
+  points.userData.maxPointCount = positions.length / 3;
   return points;
 }
 
@@ -700,8 +705,12 @@ function applyCloudDensity() {
   densityValue.textContent = `${Math.round(density * 100)}%`;
   root.traverse((object) => {
     if (!object.userData.isCloud || !object.material) return;
-    object.material.size = 0.032 * Math.sqrt(density);
-    object.material.opacity = (object.userData.baseCloudOpacity ?? 0.78) * Math.min(1.6, density);
+    object.material.size = object.userData.baseCloudSize ?? 0.032;
+    object.material.opacity = object.userData.baseCloudOpacity ?? 0.78;
+    const basePointCount = object.userData.basePointCount ?? object.geometry.attributes.position.count;
+    const maxPointCount = object.userData.maxPointCount ?? object.geometry.attributes.position.count;
+    const visiblePointCount = Math.max(1, Math.min(maxPointCount, Math.round(basePointCount * density)));
+    object.geometry.setDrawRange(0, visiblePointCount);
   });
 }
 
