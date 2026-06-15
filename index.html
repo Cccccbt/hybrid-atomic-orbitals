@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>杂化轨道 3D 演示</title>
+    <link rel="stylesheet" href="./styles.css?v=5" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/three.module.js",
+          "three/addons/": "./vendor/three/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="app">
+      <section class="stage" aria-label="3D 杂化轨道演示">
+        <canvas id="orbital-canvas"></canvas>
+        <div class="load-error" id="load-error">
+          3D 模块未加载。请用 http://127.0.0.1:5173/ 打开，而不是直接双击 HTML 文件。
+        </div>
+        <div class="hud">
+          <div>
+            <p class="eyebrow">Hybridization</p>
+            <h1 id="title">sp</h1>
+          </div>
+          <p id="geometry">线形，180°</p>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div>
+          <p class="eyebrow">选择类型</p>
+          <div class="selector" id="selector" role="tablist" aria-label="杂化类型">
+            <button class="active" type="button" data-key="sp">sp</button>
+            <button type="button" data-key="sp2">sp²</button>
+            <button type="button" data-key="sp3">sp³</button>
+            <button type="button" data-key="sp3d">sp³d</button>
+            <button type="button" data-key="sp3d2">sp³d²</button>
+          </div>
+        </div>
+
+        <div class="facts">
+          <div>
+            <span>轨道数</span>
+            <strong id="count">2</strong>
+          </div>
+          <div>
+            <span>空间构型</span>
+            <strong id="shape">线形</strong>
+          </div>
+          <div>
+            <span>典型键角</span>
+            <strong id="angle">180°</strong>
+          </div>
+        </div>
+
+        <div class="process">
+          <div class="process-head">
+            <span id="process-label">原子轨道</span>
+            <strong id="process-percent">0%</strong>
+          </div>
+          <input id="mix-progress" type="range" min="0" max="100" value="100" />
+          <button id="play-process" type="button">播放形成过程</button>
+        </div>
+
+        <div class="controls">
+          <label class="toggle">
+            <input id="auto-rotate" type="checkbox" checked />
+            <span>自动旋转</span>
+          </label>
+          <label class="toggle">
+            <input id="show-labels" type="checkbox" checked />
+            <span>显示标签</span>
+          </label>
+          <label class="toggle">
+            <input id="cloud-mode" type="checkbox" />
+            <span>电子云模式</span>
+          </label>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="./app.js?v=5"></script>
+  </body>
+</html>
