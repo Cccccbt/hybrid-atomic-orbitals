@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>杂化轨道 3D 演示</title>
-    <link rel="stylesheet" href="./styles.css?v=6" />
+    <link rel="stylesheet" href="./styles.css?v=7" />
     <script type="importmap">
       {
         "imports": {
@@ -71,6 +71,19 @@
           <button id="play-process" type="button" data-i18n="playProcess">播放形成过程</button>
         </div>
 
+        <div class="density-control">
+          <div class="process-head">
+            <span data-i18n="cloudDensity">电子云密度</span>
+            <strong id="density-value">100%</strong>
+          </div>
+          <input id="cloud-density" type="range" min="20" max="180" value="100" />
+        </div>
+
+        <div class="orbital-panel">
+          <p class="eyebrow" data-i18n="orbitalVisibility">轨道显示与颜色</p>
+          <div class="orbital-list" id="orbital-list"></div>
+        </div>
+
         <div class="controls">
           <label class="toggle">
             <input id="auto-rotate" type="checkbox" checked />
@@ -88,7 +101,7 @@
       </aside>
     </main>
 
-    <script type="module" src="./app.js?v=6"></script>
+    <script type="module" src="./app.js?v=7"></script>
   </body>
 </html>
  

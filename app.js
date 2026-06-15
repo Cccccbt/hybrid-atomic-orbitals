@@ -16,6 +16,9 @@ const processLabel = document.querySelector("#process-label");
 const processPercent = document.querySelector("#process-percent");
 const playProcess = document.querySelector("#play-process");
 const languageSwitch = document.querySelector(".language-switch");
+const cloudDensity = document.querySelector("#cloud-density");
+const densityValue = document.querySelector("#density-value");
+const orbitalList = document.querySelector("#orbital-list");
 
 const translations = {
   zh: {
@@ -31,6 +34,8 @@ const translations = {
     autoRotate: "自动旋转",
     showLabels: "显示标签",
     cloudMode: "电子云模式",
+    cloudDensity: "电子云密度",
+    orbitalVisibility: "轨道显示与颜色",
     atomicOrbitals: "原子轨道",
     hybridOrbitals: "杂化轨道",
     orbital: "轨道",
@@ -53,6 +58,8 @@ const translations = {
     autoRotate: "Auto rotate",
     showLabels: "Show labels",
     cloudMode: "Electron cloud",
+    cloudDensity: "Cloud density",
+    orbitalVisibility: "Orbital display & colors",
     atomicOrbitals: "Atomic orbitals",
     hybridOrbitals: "Hybrid orbitals",
     orbital: "orbital",
@@ -260,6 +267,8 @@ const piMaterial = new THREE.MeshPhysicalMaterial({
 let activeKey = "sp";
 let playFrame = 0;
 let randomSeed = 12;
+let orbitalControls = [];
+const orbitalState = new Map();
 
 function orientAlong(mesh, direction) {
   const axis = new THREE.Vector3(0, 1, 0);
@@ -357,8 +366,10 @@ function makeAtomicOrbital(name, index) {
   return group;
 }
 
-function makeLobe(direction, index, orbitalLabel) {
+function makeLobe(direction, index, orbitalLabel, orbitalId) {
   const group = new THREE.Group();
+  group.userData.orbitalId = orbitalId;
+  group.userData.orbitalName = `${orbitalLabel}-${index + 1}`;
   const dir = new THREE.Vector3(...direction).normalize();
   const colorMaterial = lobeMaterials[index % lobeMaterials.length];
 
@@ -409,6 +420,8 @@ function makeLobe(direction, index, orbitalLabel) {
 
 function makePiBond(axisName, index) {
   const group = new THREE.Group();
+  group.userData.orbitalId = `pi-${axisName}`;
+  group.userData.orbitalName = `${axisName} π`;
   const axis = cloneVector(axisName);
   const dumbbell = makeDumbbell(axis, piMaterial, piMaterial, 1.15);
   group.add(dumbbell);
@@ -483,6 +496,7 @@ function makePointCloud(positions, colors, size, opacity) {
   });
   const points = new THREE.Points(geometry, material);
   points.userData.isCloud = true;
+  points.userData.baseCloudOpacity = opacity;
   return points;
 }
 
@@ -593,9 +607,10 @@ function renderHybrid(keyName) {
   hybridRoot.add(hybridTitle);
 
   entry.directions.forEach((direction, index) => {
-    hybridRoot.add(makeLobe(direction, index, entry.label));
+    hybridRoot.add(makeLobe(direction, index, entry.label, `hybrid-${index}`));
   });
   entry.pi.forEach((axisName, index) => hybridRoot.add(makePiBond(axisName, index)));
+  buildOrbitalControls();
 
   title.textContent = entry.label;
   geometry.textContent = entry.pi.length
@@ -610,6 +625,84 @@ function renderHybrid(keyName) {
   });
 
   applyProgress(Number(mixProgress.value) / 100);
+}
+
+function getDefaultOrbitalColor(index) {
+  return `#${lobeMaterials[index % lobeMaterials.length].color.getHexString()}`;
+}
+
+function ensureOrbitalState(group, index) {
+  const id = group.userData.orbitalId;
+  if (!orbitalState.has(id)) {
+    orbitalState.set(id, { visible: true, color: getDefaultOrbitalColor(index) });
+  }
+  return orbitalState.get(id);
+}
+
+function buildOrbitalControls() {
+  orbitalControls = hybridRoot.children.filter((child) => child.userData.orbitalId);
+  orbitalList.innerHTML = "";
+
+  orbitalControls.forEach((group, index) => {
+    const state = ensureOrbitalState(group, index);
+    const row = document.createElement("label");
+    row.className = "orbital-row";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = state.visible;
+    checkbox.dataset.orbitalId = group.userData.orbitalId;
+
+    const name = document.createElement("span");
+    name.textContent = group.userData.orbitalName;
+
+    const color = document.createElement("input");
+    color.type = "color";
+    color.value = state.color;
+    color.dataset.orbitalId = group.userData.orbitalId;
+    color.setAttribute("aria-label", group.userData.orbitalName);
+
+    row.append(checkbox, name, color);
+    orbitalList.append(row);
+  });
+
+  applyOrbitalControls();
+}
+
+function applyOrbitalControls() {
+  orbitalControls.forEach((group, index) => {
+    const state = ensureOrbitalState(group, index);
+    group.visible = state.visible;
+    applyOrbitalColor(group, state.color);
+  });
+  applyCloudDensity();
+}
+
+function applyOrbitalColor(group, color) {
+  const colorValue = new THREE.Color(color);
+  group.traverse((object) => {
+    if (object.isPoints && object.geometry?.attributes?.color) {
+      const colors = object.geometry.attributes.color;
+      for (let i = 0; i < colors.count; i += 1) {
+        colors.setXYZ(i, colorValue.r, colorValue.g, colorValue.b);
+      }
+      colors.needsUpdate = true;
+    }
+    if (object.material?.color) {
+      object.material.color.copy(colorValue);
+      if (object.material.emissive) object.material.emissive.copy(colorValue).multiplyScalar(0.28);
+    }
+  });
+}
+
+function applyCloudDensity() {
+  const density = Number(cloudDensity.value) / 100;
+  densityValue.textContent = `${Math.round(density * 100)}%`;
+  root.traverse((object) => {
+    if (!object.userData.isCloud || !object.material) return;
+    object.material.size = 0.032 * Math.sqrt(density);
+    object.material.opacity = (object.userData.baseCloudOpacity ?? 0.78) * Math.min(1.6, density);
+  });
 }
 
 function setGroupOpacity(group, opacity) {
@@ -636,6 +729,7 @@ function setVisualMode() {
     if (object.userData.isCloud) object.visible = cloud;
   });
   setLabelsVisible();
+  applyCloudDensity();
 }
 
 function applyProgress(value) {
@@ -714,6 +808,17 @@ mixProgress.addEventListener("input", () => {
 });
 
 playProcess.addEventListener("click", playFormation);
+
+cloudDensity.addEventListener("input", applyCloudDensity);
+
+orbitalList.addEventListener("input", (event) => {
+  const input = event.target;
+  const state = orbitalState.get(input.dataset.orbitalId);
+  if (!state) return;
+  if (input.type === "checkbox") state.visible = input.checked;
+  if (input.type === "color") state.color = input.value;
+  applyOrbitalControls();
+});
 
 window.addEventListener("resize", resize);
 
